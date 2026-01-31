@@ -9,7 +9,7 @@ interface DashboardLayoutProps {
 
 export function DashboardLayout({ children }: DashboardLayoutProps) {
   return (
-    <div className="flex h-screen overflow-hidden bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50">
+    <div className="flex h-screen overflow-hidden bg-black">
       <Sidebar />
       <div className="flex-1 flex flex-col overflow-hidden">
         <TopBar />

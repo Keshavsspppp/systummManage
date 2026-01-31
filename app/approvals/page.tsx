@@ -2,50 +2,76 @@
 
 import { ProtectedRoute } from "@/components/auth/protected-route"
 import { DashboardLayout } from "@/components/layout/dashboard-layout"
-import { UserRole } from "@/types"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { CheckCircle, XCircle, Calendar, Package, Users, Eye } from "lucide-react"
+import { UserRole } from "@/types"
+import { CheckCircle, XCircle, Clock, Calendar, Users, Building2, RefreshCw } from "lucide-react"
 import { useState } from "react"
-
-// Mock pending approvals data
-const mockPendingEvents = [
-  { id: "1", title: "Hackathon 2026", organizer: "Coding Club", date: "2026-03-20", type: "competition", budget: 10000 },
-  { id: "2", title: "Annual Tech Fest", organizer: "Tech Society", date: "2026-04-15", type: "cultural", budget: 50000 },
-]
-
-const mockPendingBookings = [
-  { id: "1", resource: "Main Auditorium", requestedBy: "Drama Club", date: "2026-03-18", time: "14:00 - 18:00", purpose: "Annual Play" },
-  { id: "2", resource: "Computer Lab 204", requestedBy: "AI Society", date: "2026-03-22", time: "10:00 - 13:00", purpose: "ML Workshop" },
-]
-
-const mockPendingClubs = [
-  { id: "1", name: "AI/ML Society", category: "technical", requestedBy: "John Doe", members: 15 },
-  { id: "2", name: "Entrepreneurship Cell", category: "academic", requestedBy: "Jane Smith", members: 20 },
-]
+import AnimatedCard from "@/components/AnimatedCard"
+import FloatingElement from "@/components/FloatingElement"
+import { useRealtime } from "@/lib/realtime-context"
 
 export default function ApprovalsPage() {
-  const [eventApprovals, setEventApprovals] = useState(mockPendingEvents)
-  const [bookingApprovals, setBookingApprovals] = useState(mockPendingBookings)
-  const [clubApprovals, setClubApprovals] = useState(mockPendingClubs)
+  const { data, isLoading, refreshApprovals, refreshEvents, refreshClubs, refreshBookings, lastUpdated } = useRealtime()
+  const [isRefreshing, setIsRefreshing] = useState(false)
 
-  const handleEventApproval = (id: string, approved: boolean) => {
-    setEventApprovals(eventApprovals.filter(e => e.id !== id))
-    // TODO: Call API to approve/reject
-    alert(`Event ${approved ? "approved" : "rejected"} successfully!`)
+  const pendingEvents = data.pendingApprovals.events
+  const pendingClubs = data.pendingApprovals.clubs
+  const pendingBookings = data.pendingApprovals.bookings
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true)
+    await refreshApprovals()
+    setTimeout(() => setIsRefreshing(false), 500)
   }
 
-  const handleBookingApproval = (id: string, approved: boolean) => {
-    setBookingApprovals(bookingApprovals.filter(b => b.id !== id))
-    // TODO: Call API to approve/reject
-    alert(`Booking ${approved ? "approved" : "rejected"} successfully!`)
+  const handleEventAction = async (eventId: string, action: 'approved' | 'rejected') => {
+    try {
+      const response = await fetch(`/api/events/${eventId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: action })
+      })
+      if (response.ok) {
+        await refreshEvents()
+        await refreshApprovals()
+      }
+    } catch (error) {
+      console.error('Failed to update event:', error)
+    }
   }
 
-  const handleClubApproval = (id: string, approved: boolean) => {
-    setClubApprovals(clubApprovals.filter(c => c.id !== id))
-    // TODO: Call API to approve/reject
-    alert(`Club ${approved ? "approved" : "rejected"} successfully!`)
+  const handleClubAction = async (clubId: string, action: 'approved' | 'rejected') => {
+    try {
+      const response = await fetch(`/api/clubs/${clubId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: action })
+      })
+      if (response.ok) {
+        await refreshClubs()
+        await refreshApprovals()
+      }
+    } catch (error) {
+      console.error('Failed to update club:', error)
+    }
+  }
+
+  const handleBookingAction = async (bookingId: string, action: 'approved' | 'rejected') => {
+    try {
+      const response = await fetch(`/api/bookings/${bookingId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: action })
+      })
+      if (response.ok) {
+        await refreshBookings()
+        await refreshApprovals()
+      }
+    } catch (error) {
+      console.error('Failed to update booking:', error)
+    }
   }
 
   return (
@@ -53,247 +79,229 @@ export default function ApprovalsPage() {
       <DashboardLayout>
         <div className="space-y-6">
           {/* Header */}
-          <div>
-            <h1 className="text-3xl font-bold">Pending Approvals</h1>
-            <p className="text-muted-foreground mt-1">Review and approve events, bookings, and clubs</p>
+          <div className="flex items-center justify-between">
+            <FloatingElement delay={0} duration={3}>
+              <div>
+                <h1 className="text-4xl font-bold bg-gradient-to-r from-purple-600 via-pink-600 to-indigo-600 bg-clip-text text-transparent">
+                  Approvals
+                </h1>
+                <p className="text-gray-600 mt-2">
+                  Manage pending approvals • 
+                  <span className="text-purple-600 font-medium ml-2">
+                    {lastUpdated ? `Updated ${new Date(lastUpdated).toLocaleTimeString()}` : 'Live'}
+                  </span>
+                </p>
+              </div>
+            </FloatingElement>
+            <Button
+              onClick={handleRefresh}
+              variant="outline"
+              className={`border-purple-200 hover:bg-purple-50 ${isRefreshing ? 'animate-spin' : ''}`}
+              disabled={isRefreshing}
+            >
+              <RefreshCw className="h-4 w-4" />
+            </Button>
           </div>
 
-          {/* Stats */}
-          <div className="grid gap-4 md:grid-cols-3">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium">Pending Events</CardTitle>
-                <Calendar className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{eventApprovals.length}</div>
-              </CardContent>
-            </Card>
+          {/* Stats Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <AnimatedCard delay={0}>
+              <Card className="glass-effect border-2 border-purple-100 hover:border-purple-300 hover:shadow-xl transition-all">
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <CardTitle className="text-sm font-medium text-gray-600">Pending Events</CardTitle>
+                  <Calendar className="h-5 w-5 text-purple-500" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-3xl font-bold gradient-text">{pendingEvents.length}</div>
+                </CardContent>
+              </Card>
+            </AnimatedCard>
 
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium">Pending Bookings</CardTitle>
-                <Package className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{bookingApprovals.length}</div>
-              </CardContent>
-            </Card>
+            <AnimatedCard delay={0.1}>
+              <Card className="glass-effect border-2 border-purple-100 hover:border-purple-300 hover:shadow-xl transition-all">
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <CardTitle className="text-sm font-medium text-gray-600">Pending Clubs</CardTitle>
+                  <Users className="h-5 w-5 text-purple-500" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-3xl font-bold gradient-text">{pendingClubs.length}</div>
+                </CardContent>
+              </Card>
+            </AnimatedCard>
 
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium">Pending Clubs</CardTitle>
-                <Users className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{clubApprovals.length}</div>
-              </CardContent>
-            </Card>
+            <AnimatedCard delay={0.2}>
+              <Card className="glass-effect border-2 border-purple-100 hover:border-purple-300 hover:shadow-xl transition-all">
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <CardTitle className="text-sm font-medium text-gray-600">Pending Bookings</CardTitle>
+                  <Building2 className="h-5 w-5 text-purple-500" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-3xl font-bold gradient-text">{pendingBookings.length}</div>
+                </CardContent>
+              </Card>
+            </AnimatedCard>
           </div>
 
           {/* Approval Tabs */}
-          <Tabs defaultValue="events" className="space-y-4">
-            <TabsList>
-              <TabsTrigger value="events">Events ({eventApprovals.length})</TabsTrigger>
-              <TabsTrigger value="bookings">Bookings ({bookingApprovals.length})</TabsTrigger>
-              <TabsTrigger value="clubs">Clubs ({clubApprovals.length})</TabsTrigger>
-            </TabsList>
+          <AnimatedCard delay={0.3}>
+            <Card className="glass-effect border-2 border-purple-100">
+              <CardContent className="pt-6">
+                <Tabs defaultValue="events" className="w-full">
+                  <TabsList className="grid w-full grid-cols-3">
+                    <TabsTrigger value="events">Events ({pendingEvents.length})</TabsTrigger>
+                    <TabsTrigger value="clubs">Clubs ({pendingClubs.length})</TabsTrigger>
+                    <TabsTrigger value="bookings">Bookings ({pendingBookings.length})</TabsTrigger>
+                  </TabsList>
 
-            {/* Events Tab */}
-            <TabsContent value="events" className="space-y-4">
-              {eventApprovals.length === 0 ? (
-                <Card>
-                  <CardContent className="py-12 text-center">
-                    <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-4" />
-                    <p className="text-lg font-medium">All caught up!</p>
-                    <p className="text-sm text-muted-foreground">No pending event approvals</p>
-                  </CardContent>
-                </Card>
-              ) : (
-                eventApprovals.map((event) => (
-                  <Card key={event.id}>
-                    <CardHeader>
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <CardTitle>{event.title}</CardTitle>
-                          <CardDescription>Organized by {event.organizer}</CardDescription>
-                        </div>
-                        <span className="px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs">
-                          Pending
-                        </span>
+                  {/* Events Tab */}
+                  <TabsContent value="events" className="space-y-4">
+                    {isLoading ? (
+                      <div className="py-16 text-center">
+                        <div className="inline-block h-12 w-12 animate-spin rounded-full border-4 border-solid border-purple-600 border-r-transparent"></div>
+                        <p className="mt-6 text-gray-600 font-medium">Loading...</p>
                       </div>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-4">
-                        <div className="grid md:grid-cols-3 gap-4 text-sm">
-                          <div>
-                            <p className="text-muted-foreground">Date</p>
-                            <p className="font-medium">{event.date}</p>
-                          </div>
-                          <div>
-                            <p className="text-muted-foreground">Type</p>
-                            <p className="font-medium capitalize">{event.type}</p>
-                          </div>
-                          <div>
-                            <p className="text-muted-foreground">Budget</p>
-                            <p className="font-medium">₹{event.budget.toLocaleString()}</p>
-                          </div>
-                        </div>
+                    ) : pendingEvents.length === 0 ? (
+                      <div className="py-16 text-center">
+                        <Clock className="h-16 w-16 text-purple-300 mx-auto mb-4" />
+                        <p className="text-gray-600">No pending events</p>
+                      </div>
+                    ) : (
+                      pendingEvents.map((event: any) => (
+                        <Card key={event._id} className="border-2 border-purple-100 hover:border-purple-300 transition-all">
+                          <CardContent className="p-6">
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1">
+                                <h3 className="text-lg font-bold">{event.title}</h3>
+                                <p className="text-sm text-gray-600 mt-1">{event.description}</p>
+                                <div className="mt-3 flex flex-wrap gap-4 text-sm text-gray-600">
+                                  <span>📅 {new Date(event.startDate).toLocaleDateString()}</span>
+                                  <span>📍 {event.location}</span>
+                                  <span>👥 Max: {event.maxParticipants}</span>
+                                </div>
+                              </div>
+                              <div className="flex gap-2 ml-4">
+                                <Button
+                                  onClick={() => handleEventAction(event._id, 'approved')}
+                                  className="bg-green-500 hover:bg-green-600 text-white"
+                                >
+                                  <CheckCircle className="h-4 w-4 mr-2" />
+                                  Approve
+                                </Button>
+                                <Button
+                                  onClick={() => handleEventAction(event._id, 'rejected')}
+                                  variant="destructive"
+                                >
+                                  <XCircle className="h-4 w-4 mr-2" />
+                                  Reject
+                                </Button>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))
+                    )}
+                  </TabsContent>
 
-                        <div className="flex gap-2">
-                          <Button
-                            size="sm"
-                            onClick={() => handleEventApproval(event.id, true)}
-                          >
-                            <CheckCircle className="h-4 w-4 mr-2" />
-                            Approve
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="destructive"
-                            onClick={() => handleEventApproval(event.id, false)}
-                          >
-                            <XCircle className="h-4 w-4 mr-2" />
-                            Reject
-                          </Button>
-                          <Button size="sm" variant="outline">
-                            <Eye className="h-4 w-4 mr-2" />
-                            View Details
-                          </Button>
-                        </div>
+                  {/* Clubs Tab */}
+                  <TabsContent value="clubs" className="space-y-4">
+                    {isLoading ? (
+                      <div className="py-16 text-center">
+                        <div className="inline-block h-12 w-12 animate-spin rounded-full border-4 border-solid border-purple-600 border-r-transparent"></div>
+                        <p className="mt-6 text-gray-600 font-medium">Loading...</p>
                       </div>
-                    </CardContent>
-                  </Card>
-                ))
-              )}
-            </TabsContent>
+                    ) : pendingClubs.length === 0 ? (
+                      <div className="py-16 text-center">
+                        <Clock className="h-16 w-16 text-purple-300 mx-auto mb-4" />
+                        <p className="text-gray-600">No pending clubs</p>
+                      </div>
+                    ) : (
+                      pendingClubs.map((club: any) => (
+                        <Card key={club._id} className="border-2 border-purple-100 hover:border-purple-300 transition-all">
+                          <CardContent className="p-6">
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1">
+                                <h3 className="text-lg font-bold">{club.name}</h3>
+                                <p className="text-sm text-gray-600 mt-1">{club.description}</p>
+                                <div className="mt-3 flex flex-wrap gap-4 text-sm text-gray-600">
+                                  <span>Category: {club.category}</span>
+                                  <span>Members: {club.memberCount || 0}</span>
+                                </div>
+                              </div>
+                              <div className="flex gap-2 ml-4">
+                                <Button
+                                  onClick={() => handleClubAction(club._id, 'approved')}
+                                  className="bg-green-500 hover:bg-green-600 text-white"
+                                >
+                                  <CheckCircle className="h-4 w-4 mr-2" />
+                                  Approve
+                                </Button>
+                                <Button
+                                  onClick={() => handleClubAction(club._id, 'rejected')}
+                                  variant="destructive"
+                                >
+                                  <XCircle className="h-4 w-4 mr-2" />
+                                  Reject
+                                </Button>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))
+                    )}
+                  </TabsContent>
 
-            {/* Bookings Tab */}
-            <TabsContent value="bookings" className="space-y-4">
-              {bookingApprovals.length === 0 ? (
-                <Card>
-                  <CardContent className="py-12 text-center">
-                    <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-4" />
-                    <p className="text-lg font-medium">All caught up!</p>
-                    <p className="text-sm text-muted-foreground">No pending booking approvals</p>
-                  </CardContent>
-                </Card>
-              ) : (
-                bookingApprovals.map((booking) => (
-                  <Card key={booking.id}>
-                    <CardHeader>
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <CardTitle>{booking.resource}</CardTitle>
-                          <CardDescription>Requested by {booking.requestedBy}</CardDescription>
-                        </div>
-                        <span className="px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs">
-                          Pending
-                        </span>
+                  {/* Bookings Tab */}
+                  <TabsContent value="bookings" className="space-y-4">
+                    {isLoading ? (
+                      <div className="py-16 text-center">
+                        <div className="inline-block h-12 w-12 animate-spin rounded-full border-4 border-solid border-purple-600 border-r-transparent"></div>
+                        <p className="mt-6 text-gray-600 font-medium">Loading...</p>
                       </div>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-4">
-                        <div className="grid md:grid-cols-3 gap-4 text-sm">
-                          <div>
-                            <p className="text-muted-foreground">Date</p>
-                            <p className="font-medium">{booking.date}</p>
-                          </div>
-                          <div>
-                            <p className="text-muted-foreground">Time</p>
-                            <p className="font-medium">{booking.time}</p>
-                          </div>
-                          <div>
-                            <p className="text-muted-foreground">Purpose</p>
-                            <p className="font-medium">{booking.purpose}</p>
-                          </div>
-                        </div>
-
-                        <div className="flex gap-2">
-                          <Button
-                            size="sm"
-                            onClick={() => handleBookingApproval(booking.id, true)}
-                          >
-                            <CheckCircle className="h-4 w-4 mr-2" />
-                            Approve
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="destructive"
-                            onClick={() => handleBookingApproval(booking.id, false)}
-                          >
-                            <XCircle className="h-4 w-4 mr-2" />
-                            Reject
-                          </Button>
-                        </div>
+                    ) : pendingBookings.length === 0 ? (
+                      <div className="py-16 text-center">
+                        <Clock className="h-16 w-16 text-purple-300 mx-auto mb-4" />
+                        <p className="text-gray-600">No pending bookings</p>
                       </div>
-                    </CardContent>
-                  </Card>
-                ))
-              )}
-            </TabsContent>
-
-            {/* Clubs Tab */}
-            <TabsContent value="clubs" className="space-y-4">
-              {clubApprovals.length === 0 ? (
-                <Card>
-                  <CardContent className="py-12 text-center">
-                    <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-4" />
-                    <p className="text-lg font-medium">All caught up!</p>
-                    <p className="text-sm text-muted-foreground">No pending club approvals</p>
-                  </CardContent>
-                </Card>
-              ) : (
-                clubApprovals.map((club) => (
-                  <Card key={club.id}>
-                    <CardHeader>
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <CardTitle>{club.name}</CardTitle>
-                          <CardDescription>Requested by {club.requestedBy}</CardDescription>
-                        </div>
-                        <span className="px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs">
-                          Pending
-                        </span>
-                      </div>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-4">
-                        <div className="grid md:grid-cols-2 gap-4 text-sm">
-                          <div>
-                            <p className="text-muted-foreground">Category</p>
-                            <p className="font-medium capitalize">{club.category}</p>
-                          </div>
-                          <div>
-                            <p className="text-muted-foreground">Initial Members</p>
-                            <p className="font-medium">{club.members}</p>
-                          </div>
-                        </div>
-
-                        <div className="flex gap-2">
-                          <Button
-                            size="sm"
-                            onClick={() => handleClubApproval(club.id, true)}
-                          >
-                            <CheckCircle className="h-4 w-4 mr-2" />
-                            Approve
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="destructive"
-                            onClick={() => handleClubApproval(club.id, false)}
-                          >
-                            <XCircle className="h-4 w-4 mr-2" />
-                            Reject
-                          </Button>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))
-              )}
-            </TabsContent>
-          </Tabs>
+                    ) : (
+                      pendingBookings.map((booking: any) => (
+                        <Card key={booking._id} className="border-2 border-purple-100 hover:border-purple-300 transition-all">
+                          <CardContent className="p-6">
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1">
+                                <h3 className="text-lg font-bold">{booking.resource?.name || 'Resource Booking'}</h3>
+                                <p className="text-sm text-gray-600 mt-1">{booking.purpose}</p>
+                                <div className="mt-3 flex flex-wrap gap-4 text-sm text-gray-600">
+                                  <span>📅 {new Date(booking.startTime).toLocaleDateString()}</span>
+                                  <span>⏰ {new Date(booking.startTime).toLocaleTimeString()} - {new Date(booking.endTime).toLocaleTimeString()}</span>
+                                  <span>👤 {booking.user?.name || 'Unknown'}</span>
+                                </div>
+                              </div>
+                              <div className="flex gap-2 ml-4">
+                                <Button
+                                  onClick={() => handleBookingAction(booking._id, 'approved')}
+                                  className="bg-green-500 hover:bg-green-600 text-white"
+                                >
+                                  <CheckCircle className="h-4 w-4 mr-2" />
+                                  Approve
+                                </Button>
+                                <Button
+                                  onClick={() => handleBookingAction(booking._id, 'rejected')}
+                                  variant="destructive"
+                                >
+                                  <XCircle className="h-4 w-4 mr-2" />
+                                  Reject
+                                </Button>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))
+                    )}
+                  </TabsContent>
+                </Tabs>
+              </CardContent>
+            </Card>
+          </AnimatedCard>
         </div>
       </DashboardLayout>
     </ProtectedRoute>

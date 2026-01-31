@@ -2,48 +2,53 @@
 
 import { ProtectedRoute } from "@/components/auth/protected-route"
 import { DashboardLayout } from "@/components/layout/dashboard-layout"
-import { UserRole } from "@/types"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { BarChart3, TrendingUp, Users, Calendar, Package, Download } from "lucide-react"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { UserRole } from "@/types"
+import { TrendingUp, Users, Calendar, Building2, Download, RefreshCw } from "lucide-react"
+import AnimatedCard from "@/components/AnimatedCard"
+import FloatingElement from "@/components/FloatingElement"
+import { useRealtime } from "@/lib/realtime-context"
+import { useState } from "react"
 
 export default function AnalyticsPage() {
-  // Mock analytics data
-  const stats = {
-    totalEvents: 48,
-    totalParticipants: 1240,
-    totalClubs: 12,
-    resourceUtilization: 76,
-    avgEventSize: 26,
-    popularEventType: "Technical",
+  const { data, isLoading, refreshAnalytics, lastUpdated } = useRealtime()
+  const stats = data.analytics || {
+    totalEvents: 0,
+    activeClubs: 0,
+    totalMembers: 0,
+    pendingApprovals: 0,
+    approvedEvents: 0,
+    pendingEvents: 0,
+    rejectedEvents: 0
+  }
+  const [isRefreshing, setIsRefreshing] = useState(false)
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true)
+    await refreshAnalytics()
+    setTimeout(() => setIsRefreshing(false), 500)
   }
 
-  const monthlyEvents = [
-    { month: "Sep", count: 6 },
-    { month: "Oct", count: 8 },
-    { month: "Nov", count: 12 },
-    { month: "Dec", count: 10 },
-    { month: "Jan", count: 12 },
-  ]
+  const handleExportCSV = () => {
+    const csvData = [
+      ['Metric', 'Value'],
+      ['Total Events', stats.totalEvents],
+      ['Active Clubs', stats.activeClubs],
+      ['Total Members', stats.totalMembers],
+      ['Pending Approvals', stats.pendingApprovals],
+      ['Approved Events', stats.approvedEvents],
+      ['Pending Events', stats.pendingEvents],
+      ['Rejected Events', stats.rejectedEvents]
+    ]
 
-  const clubActivity = [
-    { name: "Coding Club", events: 8, members: 45 },
-    { name: "Drama Club", events: 6, members: 32 },
-    { name: "Sports Club", events: 12, members: 67 },
-    { name: "Photography Club", events: 4, members: 28 },
-    { name: "Music Club", events: 7, members: 52 },
-  ]
-
-  const resourceUsage = [
-    { resource: "Main Auditorium", bookings: 24, hours: 96 },
-    { resource: "Computer Lab 204", bookings: 18, hours: 72 },
-    { resource: "Seminar Hall 1", bookings: 15, hours: 60 },
-    { resource: "Sports Complex", bookings: 22, hours: 110 },
-  ]
-
-  const exportData = () => {
-    // TODO: Implement CSV/Excel export
-    alert("Export functionality will be implemented with actual data")
+    const csv = csvData.map(row => row.join(',')).join('\n')
+    const blob = new Blob([csv], { type: 'text/csv' })
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `analytics-${new Date().toISOString().split('T')[0]}.csv`
+    a.click()
   }
 
   return (
@@ -52,200 +57,156 @@ export default function AnalyticsPage() {
         <div className="space-y-6">
           {/* Header */}
           <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold">Analytics Dashboard</h1>
-              <p className="text-muted-foreground mt-1">Campus activity insights and metrics</p>
+            <FloatingElement delay={0} duration={3}>
+              <div>
+                <h1 className="text-4xl font-bold bg-gradient-to-r from-purple-600 via-pink-600 to-indigo-600 bg-clip-text text-transparent">
+                  Analytics
+                </h1>
+                <p className="text-gray-600 mt-2">
+                  Platform insights and statistics • 
+                  <span className="text-purple-600 font-medium ml-2">
+                    {lastUpdated ? `Updated ${new Date(lastUpdated).toLocaleTimeString()}` : 'Live'}
+                  </span>
+                </p>
+              </div>
+            </FloatingElement>
+            <div className="flex gap-2">
+              <Button
+                onClick={handleRefresh}
+                variant="outline"
+                className={`border-purple-200 hover:bg-purple-50 ${isRefreshing ? 'animate-spin' : ''}`}
+                disabled={isRefreshing}
+              >
+                <RefreshCw className="h-4 w-4" />
+              </Button>
+              <Button onClick={handleExportCSV} className="gradient-primary text-white">
+                <Download className="h-4 w-4 mr-2" />
+                Export CSV
+              </Button>
             </div>
-            <Button onClick={exportData}>
-              <Download className="h-4 w-4 mr-2" />
-              Export Report
-            </Button>
           </div>
 
-          {/* Key Metrics */}
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium">Total Events</CardTitle>
-                <Calendar className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{stats.totalEvents}</div>
-                <p className="text-xs text-green-600 mt-1">+12% from last semester</p>
-              </CardContent>
-            </Card>
+          {/* Main Stats Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <AnimatedCard delay={0}>
+              <Card className="glass-effect border-2 border-purple-100 hover:border-purple-300 hover:shadow-xl transition-all group">
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <CardTitle className="text-sm font-medium text-gray-600">Total Events</CardTitle>
+                  <Calendar className="h-5 w-5 text-purple-500 group-hover:scale-110 transition-transform" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-3xl font-bold gradient-text">{stats.totalEvents}</div>
+                  <p className="text-xs text-gray-500 mt-1">All time</p>
+                </CardContent>
+              </Card>
+            </AnimatedCard>
 
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium">Total Participants</CardTitle>
-                <Users className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{stats.totalParticipants}</div>
-                <p className="text-xs text-green-600 mt-1">+18% from last semester</p>
-              </CardContent>
-            </Card>
+            <AnimatedCard delay={0.1}>
+              <Card className="glass-effect border-2 border-purple-100 hover:border-purple-300 hover:shadow-xl transition-all group">
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <CardTitle className="text-sm font-medium text-gray-600">Active Clubs</CardTitle>
+                  <Users className="h-5 w-5 text-purple-500 group-hover:scale-110 transition-transform" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-3xl font-bold gradient-text">{stats.activeClubs}</div>
+                  <p className="text-xs text-gray-500 mt-1">Currently active</p>
+                </CardContent>
+              </Card>
+            </AnimatedCard>
 
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium">Active Clubs</CardTitle>
-                <Users className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{stats.totalClubs}</div>
-                <p className="text-xs text-muted-foreground mt-1">All categories</p>
-              </CardContent>
-            </Card>
+            <AnimatedCard delay={0.2}>
+              <Card className="glass-effect border-2 border-purple-100 hover:border-purple-300 hover:shadow-xl transition-all group">
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <CardTitle className="text-sm font-medium text-gray-600">Total Members</CardTitle>
+                  <TrendingUp className="h-5 w-5 text-purple-500 group-hover:scale-110 transition-transform" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-3xl font-bold gradient-text">{stats.totalMembers}</div>
+                  <p className="text-xs text-gray-500 mt-1">Registered users</p>
+                </CardContent>
+              </Card>
+            </AnimatedCard>
 
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium">Resource Utilization</CardTitle>
-                <Package className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{stats.resourceUtilization}%</div>
-                <p className="text-xs text-green-600 mt-1">Optimal usage</p>
-              </CardContent>
-            </Card>
+            <AnimatedCard delay={0.3}>
+              <Card className="glass-effect border-2 border-purple-100 hover:border-purple-300 hover:shadow-xl transition-all group">
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <CardTitle className="text-sm font-medium text-gray-600">Pending Approvals</CardTitle>
+                  <Building2 className="h-5 w-5 text-purple-500 group-hover:scale-110 transition-transform" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-3xl font-bold gradient-text">{stats.pendingApprovals}</div>
+                  <p className="text-xs text-gray-500 mt-1">Needs review</p>
+                </CardContent>
+              </Card>
+            </AnimatedCard>
           </div>
 
-          <div className="grid gap-6 md:grid-cols-2">
-            {/* Event Trends */}
-            <Card>
+          {/* Event Status Breakdown */}
+          <AnimatedCard delay={0.4}>
+            <Card className="glass-effect border-2 border-purple-100">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <TrendingUp className="h-5 w-5" />
-                  Event Participation Trends
-                </CardTitle>
-                <CardDescription>Monthly event count</CardDescription>
+                <CardTitle>Event Status Breakdown</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-2">
-                  {monthlyEvents.map((data) => (
-                    <div key={data.month} className="flex items-center">
-                      <div className="w-16 text-sm text-muted-foreground">{data.month}</div>
-                      <div className="flex-1">
-                        <div className="bg-primary h-8 rounded flex items-center justify-end px-2 text-white text-sm font-medium"
-                             style={{ width: `${(data.count / 15) * 100}%` }}>
-                          {data.count}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                <div className="mt-4 p-3 bg-blue-50 rounded-lg">
-                  <p className="text-sm text-blue-800">
-                    <strong>Insight:</strong> Event participation has increased by 18% this semester
-                  </p>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="p-4 bg-green-50 rounded-lg border-2 border-green-200">
+                    <div className="text-2xl font-bold text-green-600">{stats.approvedEvents}</div>
+                    <p className="text-sm text-green-700 mt-1">Approved Events</p>
+                  </div>
+                  <div className="p-4 bg-yellow-50 rounded-lg border-2 border-yellow-200">
+                    <div className="text-2xl font-bold text-yellow-600">{stats.pendingEvents}</div>
+                    <p className="text-sm text-yellow-700 mt-1">Pending Events</p>
+                  </div>
+                  <div className="p-4 bg-red-50 rounded-lg border-2 border-red-200">
+                    <div className="text-2xl font-bold text-red-600">{stats.rejectedEvents}</div>
+                    <p className="text-sm text-red-700 mt-1">Rejected Events</p>
+                  </div>
                 </div>
               </CardContent>
             </Card>
+          </AnimatedCard>
 
-            {/* Club Activity */}
-            <Card>
+          {/* Recent Activity */}
+          <AnimatedCard delay={0.5}>
+            <Card className="glass-effect border-2 border-purple-100">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <BarChart3 className="h-5 w-5" />
-                  Club Activity Metrics
-                </CardTitle>
-                <CardDescription>Events organized per club</CardDescription>
+                <CardTitle>Platform Overview</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {clubActivity.map((club) => (
-                    <div key={club.name} className="space-y-2">
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="font-medium">{club.name}</span>
-                        <span className="text-muted-foreground">{club.events} events</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className="flex-1 bg-gray-200 rounded-full h-2">
-                          <div 
-                            className="bg-primary h-2 rounded-full" 
-                            style={{ width: `${(club.events / 12) * 100}%` }}
-                          />
-                        </div>
-                        <span className="text-xs text-muted-foreground w-16 text-right">
-                          {club.members} members
-                        </span>
-                      </div>
+                  <div className="flex items-center justify-between p-4 bg-purple-50 rounded-lg border-2 border-purple-200">
+                    <div>
+                      <p className="text-sm font-medium text-purple-900">Average Event Attendance</p>
+                      <p className="text-xs text-purple-600 mt-1">Based on registered participants</p>
                     </div>
-                  ))}
+                    <div className="text-2xl font-bold text-purple-600">
+                      {stats.totalEvents > 0 ? Math.round(stats.totalMembers / stats.totalEvents) : 0}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between p-4 bg-blue-50 rounded-lg border-2 border-blue-200">
+                    <div>
+                      <p className="text-sm font-medium text-blue-900">Average Club Size</p>
+                      <p className="text-xs text-blue-600 mt-1">Members per club</p>
+                    </div>
+                    <div className="text-2xl font-bold text-blue-600">
+                      {stats.activeClubs > 0 ? Math.round(stats.totalMembers / stats.activeClubs) : 0}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between p-4 bg-indigo-50 rounded-lg border-2 border-indigo-200">
+                    <div>
+                      <p className="text-sm font-medium text-indigo-900">Approval Rate</p>
+                      <p className="text-xs text-indigo-600 mt-1">Events approved vs total</p>
+                    </div>
+                    <div className="text-2xl font-bold text-indigo-600">
+                      {stats.totalEvents > 0 ? Math.round((stats.approvedEvents / stats.totalEvents) * 100) : 0}%
+                    </div>
+                  </div>
                 </div>
               </CardContent>
             </Card>
-          </div>
-
-          {/* Resource Utilization */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Package className="h-5 w-5" />
-                Resource Utilization Report
-              </CardTitle>
-              <CardDescription>Booking statistics and usage hours</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b">
-                      <th className="text-left py-3 px-4">Resource</th>
-                      <th className="text-left py-3 px-4">Total Bookings</th>
-                      <th className="text-left py-3 px-4">Total Hours</th>
-                      <th className="text-left py-3 px-4">Utilization</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {resourceUsage.map((resource) => (
-                      <tr key={resource.resource} className="border-b hover:bg-gray-50">
-                        <td className="py-3 px-4 font-medium">{resource.resource}</td>
-                        <td className="py-3 px-4">{resource.bookings}</td>
-                        <td className="py-3 px-4">{resource.hours} hrs</td>
-                        <td className="py-3 px-4">
-                          <div className="flex items-center gap-2">
-                            <div className="flex-1 bg-gray-200 rounded-full h-2 max-w-25">
-                              <div 
-                                className="bg-green-500 h-2 rounded-full" 
-                                style={{ width: `${(resource.hours / 110) * 100}%` }}
-                              />
-                            </div>
-                            <span className="text-sm text-muted-foreground">
-                              {Math.round((resource.hours / 110) * 100)}%
-                            </span>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Summary Insights */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Key Insights</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
-                <p className="text-sm text-green-800">
-                  <strong>✓ High Engagement:</strong> Sports Club leads with 12 events and 67 members
-                </p>
-              </div>
-              <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                <p className="text-sm text-blue-800">
-                  <strong>ℹ Popular Category:</strong> {stats.popularEventType} events have the highest participation rate
-                </p>
-              </div>
-              <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                <p className="text-sm text-yellow-800">
-                  <strong>⚠ Resource Optimization:</strong> Main Auditorium is at 87% capacity - consider adding time slots
-                </p>
-              </div>
-            </CardContent>
-          </Card>
+          </AnimatedCard>
         </div>
       </DashboardLayout>
     </ProtectedRoute>

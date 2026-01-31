@@ -1,4 +1,6 @@
 import mongoose, { Schema, Model, Document } from 'mongoose';
+import './User'; // Ensure User model is registered
+import './Club'; // Ensure Club model is registered
 
 interface IEvent extends Document {
   title: string;

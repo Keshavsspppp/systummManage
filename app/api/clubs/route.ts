@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import dbConnect from "@/lib/mongodb"
 import Club from "@/lib/models/Club"
+import User from "@/lib/models/User"
 
 // GET all clubs or filter by query params
 export async function GET(request: NextRequest) {

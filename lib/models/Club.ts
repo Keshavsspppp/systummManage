@@ -1,4 +1,5 @@
 import mongoose, { Schema, Model, Document } from 'mongoose';
+import './User'; // Ensure User model is registered
 
 interface IClub extends Document {
   name: string;

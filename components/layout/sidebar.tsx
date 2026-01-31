@@ -87,13 +87,13 @@ export function Sidebar() {
 
       {/* User Info */}
       <div className="border-b border-white/20 p-4">
-        <div className="flex items-center gap-3 p-3 rounded-xl bg-gradient-to-r from-purple-50 to-pink-50 hover-lift">
-          <div className="h-10 w-10 rounded-full gradient-primary flex items-center justify-center text-white font-semibold">
+        <div className="flex items-center gap-3 p-4 rounded-2xl bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50 hover:shadow-xl hover:scale-105 transition-all duration-300 cursor-pointer group">
+          <div className="h-12 w-12 rounded-full gradient-primary flex items-center justify-center text-white font-bold text-lg shadow-lg shadow-purple-500/50 group-hover:rotate-6 transition-transform">
             {user?.name?.charAt(0).toUpperCase()}
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium truncate">{user?.name}</p>
-            <p className="text-xs text-purple-600 capitalize font-medium">{user?.role}</p>
+            <p className="text-sm font-bold truncate group-hover:text-purple-600 transition-colors">{user?.name}</p>
+            <p className="text-xs text-purple-600 capitalize font-semibold">{user?.role}</p>
           </div>
         </div>
       </div>
@@ -101,18 +101,20 @@ export function Sidebar() {
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto p-4">
         <ul className="space-y-2">
-          {navItems.map((item) => (
+          {navItems.map((item, index) => (
             <RoleGuard key={item.href} allowedRoles={item.roles}>
-              <li>
+              <li style={{ animationDelay: `${index * 50}ms` }} className="animate-fade-in">
                 <Link
                   href={item.href}
-                  className={`flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all ${
+                  className={`flex items-center gap-3 rounded-xl px-4 py-3.5 text-sm font-semibold transition-all duration-300 group ${
                     pathname === item.href
-                      ? "gradient-primary text-white shadow-lg shadow-purple-500/50"
-                      : "text-gray-700 hover:bg-gradient-to-r hover:from-purple-50 hover:to-pink-50 hover-lift"
+                      ? "gradient-primary text-white shadow-xl shadow-purple-500/50 scale-105"
+                      : "text-gray-700 hover:bg-gradient-to-br hover:from-purple-50 hover:via-pink-50 hover:to-blue-50 hover:scale-105 hover:shadow-lg"
                   }`}
                 >
-                  {item.icon}
+                  <span className={`${pathname === item.href ? "" : "group-hover:rotate-12"} transition-transform`}>
+                    {item.icon}
+                  </span>
                   {item.title}
                 </Link>
               </li>
@@ -124,17 +126,17 @@ export function Sidebar() {
       {/* Footer Actions */}
       <div className="border-t border-white/20 p-4 space-y-2">
         <Link href="/settings">
-          <Button variant="ghost" className="w-full justify-start hover:bg-gradient-to-r hover:from-purple-50 hover:to-pink-50">
-            <Settings className="mr-2 h-4 w-4" />
+          <Button variant="ghost" className="w-full justify-start hover:bg-gradient-to-r hover:from-purple-50 hover:to-pink-50 hover:scale-105 transition-all font-semibold">
+            <Settings className="mr-2 h-5 w-5" />
             Settings
           </Button>
         </Link>
         <Button
           variant="ghost"
-          className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50"
+          className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50 hover:scale-105 transition-all font-semibold"
           onClick={logout}
         >
-          <LogOut className="mr-2 h-4 w-4" />
+          <LogOut className="mr-2 h-5 w-5" />
           Logout
         </Button>
       </div>
